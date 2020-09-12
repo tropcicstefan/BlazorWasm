@@ -1,0 +1,102 @@
+﻿@page "/detailed/{id}"
+@page "/detailed/{id}/{tab}"
+<h3>Detailed</h3>
+
+@if (User == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row">
+            <h1>@User.KnownAs's profile</h1>
+        </div>
+        <div class="row">
+            <div class="col-sm-4">
+                <div class="card">
+                    <img class="card-img-top img-thumbnail" src="@(string.IsNullOrEmpty(User.PhotoUrl) ? "../../images/user.png": User.PhotoUrl)" alt="@User.KnownAs">
+                    <div class="card-body">
+                        <div>
+                            <strong>Location:</strong>
+                            <p>@User.City, @User.Country</p>
+                        </div>
+                        <div>
+                            <strong>Age:</strong>
+                            <p>@User.Age</p>
+                        </div>
+                        <div>
+                            <strong>Last Active:</strong>
+                            <p>@User.LastActive</p>
+                        </div>
+                        <div>
+                            <strong>Member Since:</strong>
+                            <p>@User.Created</p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group d-flex">
+                            <button class="btn btn-primary w-100 mr-2">Like</button>
+                            <button class="btn btn-success w-100 ml-2">Message</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-8">
+                <div class="tab-panel">
+                    <TabControl>
+                        <TabPage Text=@($"About {User.KnownAs}")>
+                            <div class="m-2">
+
+                                <h4>Description</h4>
+                                <p>@User.Introduction</p>
+                                <h4>Looking For</h4>
+                                <p>@User.LookingFor</p>
+                            </div>
+                        </TabPage>
+                        <TabPage Text="Interests">
+                            <div class="m-2">
+                                <h4>Interests</h4>
+                                <p>@User.Interests</p>
+                            </div>
+                        </TabPage>
+                        <TabPage Text="Photos">
+                            <div class="row m-2 text-center text-lg-left">
+                                @foreach (var item in User.Photos)
+                                {
+                                    <div class="col-lg-3 col-md-4 col-6">
+                                        <a class="d-block">
+                                            <img class="img-fluid img-thumbnail p-1 mb-2" style="height: 100px; min-width: 100px !important;" src=@item.Url alt="">
+                                        </a>                                    
+                                    </div>
+                                }
+                            </div>
+                        </TabPage>
+                        <TabPage Active="@(Tab == "messages")" Text="Messages">
+
+                        </TabPage>
+
+                    </TabControl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+}
+@code {
+    [Parameter]
+    public string Id { get; set; }
+    
+    [Parameter]
+    public string Tab { get; set; }
+
+    [Inject]
+    private IMemberService memberService { get; set; }
+
+    private UserForDetailedDto User { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        User = await memberService.GetUser(Id);
+    }
+}

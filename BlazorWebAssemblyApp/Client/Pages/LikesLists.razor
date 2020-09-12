@@ -1,0 +1,72 @@
+﻿@page "/likeslists"
+@using Microsoft.AspNetCore.Authorization
+@using MeetMe.Client.Shared.Members
+@attribute [Authorize]
+
+<div class="text-center mt-3">
+    <h2></h2>
+</div>
+
+<div class="container mt-3">
+
+    <div class="row">
+        <div class="btn-group">
+            <button class="btn @(userParams.Likers ? "btn-primary" : "btn-light")" @onclick="() => SelectionChanged()">
+                Members who like me
+            </button>
+            <button class="btn @(userParams.Likees ? "btn-primary" : "btn-light")" @onclick="() => SelectionChanged()">
+                Members who I like
+            </button>
+        </div>
+    </div>
+
+    <br>
+
+    <div class="row">
+        @if (Users == null)
+        {
+            <p>Loading</p>
+        }
+        else
+        {
+            @foreach (var user in Users)
+            {
+                <div class="col-sm-6 col-md-4 col-lg-4 col-xl-2">
+                    <MemberCard
+                        User="user"
+                        ShowLike="false">
+                    </MemberCard>
+                </div>
+            }
+        }
+    </div>
+
+
+</div>
+
+@code {
+
+    public IEnumerable<UserForListDto> Users { get; set; }
+    public UserParams userParams { get; set; } = new UserParams() { Likers = true};
+    [Inject]
+    private IMemberService memberService { get; set; }
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+    private async Task LoadUsers()
+    {
+        Users = await memberService.GetUsers(userParams);
+        StateHasChanged();
+    }
+
+    private async Task SelectionChanged()
+    {
+        userParams.Likees = !userParams.Likees;
+        userParams.Likers = !userParams.Likers;
+        await LoadUsers();
+    }
+}

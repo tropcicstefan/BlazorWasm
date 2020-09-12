@@ -1,0 +1,97 @@
+﻿
+<div class="card">
+    <div class="card-img-wrapper">
+        <img src="@(string.IsNullOrEmpty(User.PhotoUrl) ? "../../images/user.png": User.PhotoUrl)" alt="@User.KnownAs" class="card-img-top">
+        <ul class="list-inline member-icons animate text-center">
+            <li class="list-inline-item"><button class="btn btn-primary" @onclick="@(()=>NavigationManager.NavigateTo($"detailed/{User.ID}"))"><i class="oi oi-eye"></i></button></li>
+            @if (ShowLike)
+            {
+                <li class="list-inline-item"><button class="btn btn-primary" @onclick="SendLike"><i class="oi oi-heart"></i></button></li>
+            }
+            <li class="list-inline-item"><button class="btn btn-primary"  @onclick="@(()=>NavigationManager.NavigateTo($"detailed/{User.ID}/messages"))"><i class="oi oi-envelope-closed"></i></button></li>
+        </ul>
+    </div>
+    <div class="card-body p-1">
+        <h6 class="card-title text-center mb-1">
+            <i class="fa fa-user"></i>
+            @User.KnownAs, @User.Age
+        </h6>
+        <p class="card-text tex-mute text-center">@User.City</p>
+    </div>
+</div>
+
+
+@code {
+    [Parameter]
+    public bool ShowLike { get; set; } = true;
+
+    [Parameter]
+    public UserForListDto User { get; set; }
+
+    [Inject]
+    public IMemberService memberService { get; set; }
+
+    [Inject]
+    public IAlertifyService alertifyService { get; set; }
+    
+    [Inject]
+    public NavigationManager NavigationManager { get; set; }
+
+    private async Task SendLike()
+    {
+        var response = await memberService.SendLike(User.ID.ToString());
+        if (response.Success)
+        {
+            await alertifyService.Success($"You have liked {User.KnownAs}");
+        }
+        else
+        {
+            await alertifyService.Error(response.ErrorMessage);
+        }
+
+    }
+
+}
+
+<style>
+    /*.card {
+        margin: 20px
+    }*/
+    .card:hover img {
+        transform: scale(1.2, 1.2);
+        transition-duration: 500ms;
+        transition-timing-function: ease-out;
+        opacity: 0.7;
+    }
+
+    .card img {
+        transform: scale(1.0, 1.0);
+        transition-duration: 500ms;
+        transition-timing-function: ease-out;
+    }
+
+    .card-img-wrapper {
+        overflow: hidden;
+        position: relative;
+    }
+
+    .member-icons {
+        position: absolute;
+        bottom: -30%;
+        left: 0;
+        right: 0;
+        margin-left: auto;
+        margin-right: auto;
+        opacity: 0;
+    }
+
+    .card-img-wrapper:hover .member-icons {
+        bottom: 0;
+        opacity: 1;
+    }
+
+    .animate {
+        transition: all 0.3s ease-in-out;
+    }
+
+</style>

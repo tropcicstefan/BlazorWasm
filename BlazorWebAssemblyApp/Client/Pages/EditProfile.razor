@@ -1,0 +1,224 @@
+﻿@page "/editprofile"
+@using System.IO
+
+@if (User == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-sm-4">
+                <h1>Your profile</h1>
+            </div>
+            @*<div class="col-sm-8">
+                    <div *ngIf="editForm.dirty" class="alert alert-info">
+                        <strong>Information:</strong> You have made changes. Any unsaved changes will be lost!
+                    </div>
+                </div>*@
+        </div>
+        <div class="row">
+            <div class="col-sm-4">
+                <div class="card">
+                    <img class="card-img-top img-thumbnail" src="@(string.IsNullOrEmpty(User.PhotoUrl) ? "../../images/user.png": User.PhotoUrl)" alt="@User.KnownAs">
+                    <div class="card-body">
+                        <div>
+                            <strong>Location:</strong>
+                            <p>@User?.City, @User?.Country</p>
+                        </div>
+                        <div>
+                            <strong>Age:</strong>
+                            <p>@User?.Age</p>
+                        </div>
+                        <div>
+                            <strong>Last Active:</strong>
+                            <p>@User?.LastActive</p>
+                        </div>
+                        <div>
+                            <strong>Member Since:</strong>
+                            <p>@User?.Created</p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-success btn-block" @onclick="Update">Save changes</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-8">
+                <TabControl>
+                    <TabPage Text="Edit Profile">
+                        <EditForm id="editForm" Model="UserForUpdate">
+                            <h4>Description</h4>
+                            @*<textarea name="introduction" class="form-control" @bind="UserForUpdate.Introduction"></textarea>*@
+                            <InputTextArea Id="introduction" class="form-control" @bind-Value="UserForUpdate.Introduction" />
+
+                            <h4>Looking For</h4>
+                            @*<textarea name="lookingFor" class="form-control" @bind="UserForUpdate.LookingFor"></textarea>*@
+                            <InputTextArea Id="lookingFor" class="form-control" @bind-Value="UserForUpdate.LookingFor" />
+
+                            <h4>Interests</h4>
+                            @*<textarea name="interests" class="form-control" @bind="UserForUpdate.Interests"></textarea>*@
+                            <InputTextArea Id="interests" class="form-control" @bind-Value="UserForUpdate.Interests" />
+
+                            <h4>Location Details:</h4>
+                            <div class="form-inline">
+                                <label for="city">City</label>
+                                <InputText Id="city" class="form-control ml-1" @bind-Value="UserForUpdate.City" />
+                                <label for="country">Country</label>
+                                <InputText Id="country" class="form-control ml-1" @bind-Value="UserForUpdate.Country" />
+                            </div>
+                        </EditForm>
+                    </TabPage>
+
+                    <TabPage Text="Edit Photos">
+                        <div class="row m-2">                            
+                            <div class="card bg-faded p-3 text-center mb-3 my-drop-zone">
+                                <InputFile OnChange="HandleSelection"></InputFile>
+                            </div>
+                        </div>
+
+                        <hr class="mt-2 mb-5">
+
+
+                        <div class="row m-2 text-center text-lg-left">
+                                @foreach (var item in User.Photos)
+                                {
+                                <div class="col-lg-3 col-md-4 col-6">
+                                    <a class="d-block">
+                                        <img class="img-fluid img-thumbnail p-1 mb-2" style="height: 100px; min-width: 100px !important;" src=@item.Url alt="">
+                                    </a>
+                                    <div class="texte-center">
+                                        <button type="button" class="btn btn-sm mr-1 @(item.IsMain ? "btn-success active" : "btn-secondary")" @onclick="()=>SetMainPhoto(item.ID)">
+                                            Main
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger @(item.IsMain ? "disabled" : "")" @onclick="()=>DeleteImage(item)">
+                                            <i class="oi oi-basket"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                }
+
+                        </div>
+                    </TabPage>
+
+                </TabControl>
+            </div>
+        </div>
+    </div>
+
+}
+
+@code {
+    [Inject]
+    private IMemberService memberService { get; set; }
+
+    [Inject]
+    private ILocalStorageService _localStorage { get; set; }
+
+    [Inject]
+    private IAlertifyService _alertifyService { get; set; }
+
+    [Inject]
+    private HttpClient _httpClient { get; set; }
+
+    private UserForDetailedDto User { get; set; }
+
+    private UserForUpdateDto UserForUpdate { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        var userFromStorage = await _localStorage.GetItemAsync<UserForDetailedDto>("user");
+        User = await memberService.GetUser(userFromStorage.ID.ToString());
+
+        UserForUpdate = new UserForUpdateDto
+        {
+            ID = User.ID,
+            City = User.City,
+            Country = User.Country,
+            Interests = User.Interests,
+            Introduction = User.Introduction,
+            LookingFor = User.LookingFor
+        };
+    }
+    private async Task Update()
+    {
+        var response = await memberService.UpdateUser(UserForUpdate);
+
+        if (response.Success)
+        {
+            User.City = UserForUpdate.City;
+            User.Country = UserForUpdate.Country;
+            User.Interests = UserForUpdate.Interests;
+            User.Introduction = UserForUpdate.Introduction;
+            User.LookingFor = UserForUpdate.LookingFor;
+
+            await _localStorage.RemoveItemAsync("user");
+            await _localStorage.SetItemAsync("user", User);
+
+            await _alertifyService.Success("Successfully updated profile!");
+        }
+        else
+        {
+            await _alertifyService.Error(response.ErrorMessage);
+        }
+
+    }
+    private async Task HandleSelection(IFileListEntry[] files)
+    {
+        var file = files.FirstOrDefault();
+        if (file != null)
+        {
+            var ms = new MemoryStream();
+            await file.Data.CopyToAsync(ms);
+
+
+            var content = new MultipartFormDataContent
+            {
+                { new ByteArrayContent(ms.GetBuffer()), "file", file.Name},
+
+            };
+
+            var response = await _httpClient.PostAsync($"api/users/{User.ID}/photos", content);
+            if (response.IsSuccessStatusCode)
+            {
+                await _alertifyService.Success("Successfully added photo");
+                User = await memberService.GetUser(User.ID.ToString());
+            }
+            else
+            {
+                await _alertifyService.Error("Failed adding photo!");
+            }
+        }
+    }
+
+    private async Task DeleteImage(PhotosForDetailedDto photo)
+    {
+        var response = await _httpClient.DeleteAsync($"api/users/{User.ID}/photos/{photo.ID}");
+        if (response.IsSuccessStatusCode)
+        {
+            await _alertifyService.Success("Successfully added photo");
+            User.Photos.Remove(photo);
+            //User = await memberService.GetUser(User.ID.ToString());
+        }
+        else
+        {
+            await _alertifyService.Error("Failed deleting photo!");
+        }
+    }
+
+    private async Task SetMainPhoto(int photoId)
+    {
+        var response = await _httpClient.PostAsync($"api/users/{User.ID}/photos/{photoId}/setMain", null);
+        if (response.IsSuccessStatusCode)
+        {
+            await _alertifyService.Success("Successfully set main photo");
+            User = await memberService.GetUser(User.ID.ToString());
+        }
+        else
+        {
+            await _alertifyService.Error("Failed setting main photo!");
+        }
+    }
+}

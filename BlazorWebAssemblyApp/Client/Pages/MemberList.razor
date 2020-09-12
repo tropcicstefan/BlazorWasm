@@ -1,0 +1,99 @@
+﻿@page "/memberlist"
+@using Microsoft.AspNetCore.Authorization
+@using MeetMe.Client.Shared.Members
+@attribute [Authorize]
+
+@*<div class="text-center mt-3">
+    <h2>Your matches -  found</h2>
+</div>*@
+
+<div class="container mt-3">
+    <form class="form-inline">
+        <div class="form-group">
+            <label for="minAge">Age From</label>
+            <input type="number" class="form-control ml-1" style="width: 70px" id="minAge" name="minAge" @bind="userParams.MinAge">
+        </div>
+
+        <div class="form-group px-2">
+            <label for="maxAge">Age To</label>
+            <input type="number" class="form-control ml-1" style="width: 70px" id="maxAge" name="maxAge" @bind="userParams.MaxAge">
+        </div>
+
+        <div class="form-group px-2">
+            <label for="gender">Show: </label>
+            <select class="form-control ml-1" style="width: 130px" id="gender" name="gender" @bind="userParams.Gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-primary" style="margin-left:10px" @onclick="LoadUsers">Apply Filters</button>
+        <button type="button" class="btn btn-info" style="margin-left:10px" @onclick="ResetFilter">Reset Filter</button>
+
+        <div class="col">
+            <div class="btn-group float-right">                
+                <button type="button" class="btn @(userParams.OrderBy == "lastActive" ? "btn-primary" : "btn-light")"
+                        @onclick="@(()=>userParams.OrderBy="lastActive")">Last Active</button>
+                <button type="button" class="btn @(userParams.OrderBy == "lastActive" ? "btn-light" :  "btn-primary")"
+                        @onclick="@(()=>userParams.OrderBy="created")">Newest Members</button>
+            </div>
+        </div>
+
+    </form>
+    <br>
+
+    <div class="row">
+        @if (Users == null)
+        {
+            <p>Loading</p>
+        }
+        else
+        {
+
+            @foreach (var user in Users)
+            {
+                <div class="col-sm-6 col-md-4 col-lg-8 col-xl-2">
+                    <MemberCard User="user">
+                    </MemberCard>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+
+@code {
+    public UserParams userParams { get; set; } = new UserParams();
+
+    public IEnumerable<UserForListDto> Users { get; set; }
+
+    [Inject]
+    private IMemberService memberService { get; set; }
+
+    [Inject]
+    private ILocalStorageService _localStorage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await _localStorage.GetItemAsync<UserForDetailedDto>("user");
+
+        userParams.Gender = user.Gender == "male" ? "female" : "male";
+
+        await LoadUsers();
+    }
+
+    private async Task ResetFilter()
+    {
+        var user = await _localStorage.GetItemAsync<UserForDetailedDto>("user");
+
+        userParams.Gender = user.Gender == "male"? "female": "male";
+        userParams.MinAge = 18;
+        userParams.MaxAge = 99;
+
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        Users = await memberService.GetUsers(userParams);
+    }
+}
