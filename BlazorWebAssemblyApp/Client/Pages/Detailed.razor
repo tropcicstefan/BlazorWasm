@@ -73,6 +73,10 @@ else
                             </div>
                         </TabPage>
                         <TabPage Active="@(Tab == "messages")" Text="Messages">
+                            <MeetMe.Client.Shared.Members.MemberMessages
+                                DetailedUserId="Convert.ToInt32(Id)">
+
+                            </MeetMe.Client.Shared.Members.MemberMessages>
 
                         </TabPage>
 
@@ -86,9 +90,11 @@ else
 @code {
     [Parameter]
     public string Id { get; set; }
-    
+
     [Parameter]
     public string Tab { get; set; }
+
+    public int LoggedInUserId { get; set; }
 
     [Inject]
     private IMemberService memberService { get; set; }

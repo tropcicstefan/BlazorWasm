@@ -23,7 +23,6 @@ namespace BlazorWebAssemblyApp.Server
             host.Run();
         }
 
-        //configure things, kestrel server?,
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>

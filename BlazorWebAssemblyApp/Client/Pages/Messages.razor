@@ -1,0 +1,149 @@
+﻿@page "/messages"
+@using Microsoft.AspNetCore.Authorization
+@using MeetMe.Client.Shared.Members
+@attribute [Authorize]
+
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="btn-group">
+            <button class="btn @(ActiveMessageContainer == MessageContainer.Unread ? "btn-primary" : "btn-light")" @onclick="@(()=>ActivateContainer(MessageContainer.Unread))">
+                <i class="oi oi-envelope-closed"></i> Unread
+            </button>
+            <button class="btn @(ActiveMessageContainer == MessageContainer.Inbox ? "btn-primary" : "btn-light")" @onclick="@(()=>ActivateContainer(MessageContainer.Inbox))">
+                <i class="oi oi-envelope-open"></i> Inbox
+            </button>
+            <button class="btn @(ActiveMessageContainer == MessageContainer.Outbox ? "btn-primary" : "btn-light")" @onclick="@(()=>ActivateContainer(MessageContainer.Outbox))">
+                <i class="oi oi-chevron-right"></i> Outbox
+            </button>
+        </div>
+    </div>
+
+    @if (MessagesList == null || MessagesList.Count() == 0)
+    {
+        <div class="row">
+            <h3>No messages</h3>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <table class="table table-hover" style="cursor: pointer">
+                <tr>
+                    <th style="width: 40%">Message</th>
+                    <th style="width: 20%">From / To</th>
+                    <th style="width: 20%">Sent / Received</th>
+                    <th style="width: 20%"></th>
+                </tr>
+                @foreach (var message in MessagesList)
+                {
+                    <tr @onclick="@(()=>NavigationManager.NavigateTo($"detailed/{(ActiveMessageContainer != MessageContainer.Outbox ? message.SenderID : message.RecipientID)}/messages"))">
+                        <td>@message.Content</td>
+                        <td>
+                            @if (ActiveMessageContainer != MessageContainer.Outbox)
+                            {
+                                <div>
+                                    <img src=@message.SenderPhotoUrl class="img-circle rounded-circle mr-1">
+                                    <strong>@message.SenderKnownAs</strong>
+                                </div>
+                            }
+                            else
+                            {
+                                <div>
+                                    <img src=@message.RecipientPhotoUrl class="img-circle rounded-circle mr-1">
+                                    <strong>@message.RecipientKnownAs</strong>
+                                </div>
+                            }
+                        </td>
+                        <td>@message.MessageSent</td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="() => DeleteMessage(message.ID)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </table>
+        </div>
+    }
+
+
+</div>
+
+
+
+@code {
+    [Inject]
+    private IMemberService _memberService { get; set; }
+
+    [Inject]
+    private ILocalStorageService _localStorage { get; set; }
+
+    [Inject]
+    private IAlertifyService _alertifyService { get; set; }
+    [Inject]
+    public NavigationManager NavigationManager { get; set; }
+
+    private IEnumerable<MessageToReturnDto> MessagesList { get; set; }
+
+    private MessageContainer ActiveMessageContainer { get; set; } = MessageContainer.Unread;
+
+    public int LoggedInUserId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoggedInUserId = (await _localStorage.GetItemAsync<UserForDetailedDto>("user")).ID;
+        await LoadMessages();
+    }
+
+    private async Task DeleteMessage(int messageId) {
+
+        Response response = await _memberService.DeleteMessage(LoggedInUserId, messageId);
+
+        if (!response.Success)
+        {
+            await _alertifyService.Error($"Error deleting message-{response.ErrorMessage}");
+        }
+    }
+
+    private async Task LoadMessages()
+    {
+        var messageParams = new MessageParams()
+        {
+            UserId = LoggedInUserId,
+            MessageContainer = ActiveMessageContainer.ToString()
+        };
+
+        MessagesList = await _memberService.GetMessages(LoggedInUserId, messageParams);
+
+        if (MessagesList == null)
+        {
+            await _alertifyService.Error("Error getting messages");
+        }
+    }
+
+    private async Task ActivateContainer(MessageContainer container)
+    {
+        ActiveMessageContainer = container;
+        await LoadMessages();
+    }
+
+    public enum MessageContainer
+    {
+        Unread,
+        Inbox,
+        Outbox
+    }
+}
+
+<style>
+    table {
+        margin-top: 15px;
+    }
+
+    .img-circle {
+        max-height: 50px;
+    }
+
+    td {
+        vertical-align: middle;
+    }
+</style>

@@ -1,0 +1,176 @@
+﻿<div class="card">
+    <div class="card-body">
+        @if (Messages == null || Messages.Count() == 0)
+        {
+            <div>
+                <p>No messages yet... say hi by using the message box below</p>
+            </div>
+        }
+
+        else
+        {
+            <ul class="chat">
+                @foreach (var item in Messages)
+                {
+                <li>
+                    <!-- from them -->
+                    @if (item.SenderID == DetailedUserId)
+                    {
+                        <div>
+                            <span class="chat-img float-left">
+                                <img src="@item.SenderPhotoUrl" alt="@item.SenderKnownAs" class="rounded-circle mr-1">
+                            </span>
+                            <div class="chat-body">
+                                <div class="header">
+                                    <strong class="primary-font">@item.SenderKnownAs</strong>
+                                    <small class="text-muted float-right">
+                                        <span class="fa fa-clock-o">@(item.MessageSent)</span>
+                                    </small>
+                                </div>
+                                <p>@item.Content</p>
+                            </div>
+                        </div>
+                    }
+                    @if (item.SenderID != DetailedUserId)
+                    {
+                        <!-- from me -->
+                        <div>
+                            <span class="chat-img float-right">
+                                <img src="@item.SenderPhotoUrl" alt="@item.SenderKnownAs" class="rounded-circle ml-1">
+                            </span>
+                            <div class="chat-body">
+                                <div class="header">
+                                    <small class="text-muted">
+                                        <span class="fa fa-clock-o">@(item.MessageSent)</span>
+                                        <span class="@(item.IsRead ? "text-success": "text-danger")">
+                                            @(item.IsRead ? $"(Read {item.DateRead})" : "(unread)")
+                                        </span>
+                                    </small>
+                                    <strong class="primary-font float-right">@item.SenderKnownAs</strong>
+                                </div>
+                                <p>@item.Content</p>
+                            </div>
+                        </div>
+                    }
+
+                </li>
+                }
+
+            </ul>
+
+        }
+
+    </div>
+    <div class="card-footer">
+            <div class="input-group">
+                <input type="text" class="form-control input-sm" placeholder="send a private message" @bind-value="NewMessage">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" @onclick="SendMessage">Send</button>
+                </div>
+            </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int DetailedUserId { get; set; }
+    public int LoggedInUserId { get; set; }
+    [Inject]
+    private IMemberService _memberService { get; set; }
+    [Inject]
+    private ILocalStorageService _localStorage { get; set; }
+    [Inject]
+    private IAlertifyService _alertifyService { get; set; }
+
+    public IEnumerable<MessageToReturnDto> Messages { get; set; }
+
+    public string NewMessage { get; set; } = "";
+
+    private bool _StopRendering = false;
+
+    protected override bool ShouldRender()
+    {
+        if (_StopRendering == true) { return false; }
+        return base.ShouldRender();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _StopRendering = true;
+
+        LoggedInUserId = (await _localStorage.GetItemAsync<UserForDetailedDto>("user")).ID;
+
+        _StopRendering = false;
+
+        await LoadMessages();
+    }
+
+    private async Task SendMessage()
+    {
+        var response = await _memberService.SendMessage(new MessageForCreationDto
+        {
+            SenderID = LoggedInUserId,
+            RecipientID = DetailedUserId,
+            Content = NewMessage
+        });
+
+        if (!response.Success)
+        {
+            await _alertifyService.Error("Error sending message, try later");
+            return;
+        }
+
+        NewMessage = string.Empty;
+        await LoadMessages();
+    }
+
+    private async Task LoadMessages()
+    {
+        Messages = await _memberService.GetMessageThread(LoggedInUserId, DetailedUserId);
+        if (Messages == null)
+        {
+            await _alertifyService.Error("Error getting messages, try later");
+            return;
+        }
+
+        foreach (var item in Messages)
+        {
+            if (item.SenderID != LoggedInUserId && !item.IsRead)
+            {
+                await _memberService.MarkMessageAsRead(LoggedInUserId, item.ID);
+            }
+        }
+
+        StateHasChanged();
+    }
+}
+
+
+<style>
+    .card {
+        border: none;
+    }
+
+    .chat {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .chat li {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px dotted #B3A9A9;
+    }
+
+    .rounded-circle {
+        height: 50px;
+        width: 50px;
+    }
+
+    .card-body {
+        overflow-y: scroll;
+        height: 400px;
+    }
+
+</style>

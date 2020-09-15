@@ -1,4 +1,4 @@
-namespace BlazorWebAssemblyApp.Server.Helpers
+namespace BlazorWebAssemblyApp.Shared
 {
     public class MessageParams
     {
