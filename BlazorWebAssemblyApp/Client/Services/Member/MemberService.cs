@@ -24,20 +24,21 @@ namespace MeetMe.Client.Services
             _localStorage = localStorage;
         }
 
-        public async Task<IEnumerable<UserForListDto>> GetUsers(UserParams userParams)
+        public async Task<(IEnumerable<UserForListDto>, PaginationHeader)> GetUsers(UserParams userParams)
         {
             var user = await _localStorage.GetItemAsync<UserForDetailedDto>("user");
             userParams.UserId = user.ID;
             string userParamsAsJson = userParams.ToQueryString();
             var result = await _httpClient.GetAsync($"api/users/?{userParamsAsJson}");
             var usersResult = JsonSerializer.Deserialize<IEnumerable<UserForListDto>>(await result.Content.ReadAsStringAsync(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
+            var pagination = JsonSerializer.Deserialize<PaginationHeader>(result.Headers.GetValues("Pagination").First(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
             if (result.IsSuccessStatusCode)
             {
-                return usersResult;
+                return (usersResult, pagination);
             }
 
-            return null;
+            return (null, null);
         }
         
         public async Task<UserForDetailedDto> GetUser(string id)
@@ -164,5 +165,13 @@ namespace MeetMe.Client.Services
 
             return response;
         }
+    }
+
+    public class PaginationHeader
+    {
+        public int CurrentPage { get; set; }
+        public int ItemsPerPage { get; set; }
+        public int TotalItems { get; set; }
+        public int TotalPages { get; set; }
     }
 }

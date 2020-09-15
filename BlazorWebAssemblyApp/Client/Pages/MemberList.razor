@@ -41,7 +41,7 @@
     </form>
     <br>
 
-    <div class="row">
+    <div class="row justify-content-center">
         @if (Users == null)
         {
             <p>Loading</p>
@@ -58,19 +58,37 @@
             }
         }
     </div>
+    <div class="row justify-content-center mt-2">
+        @if (Pagination != null)
+        {
+            <nav>
+                <ul class="pagination">
+                    @for (int i = 1; i <= Pagination.TotalPages; i++)
+                    {
+                        var temp = i;
+                        <li class="page-item" @onclick="(e => ChangePage(temp))"><a class="page-link">@i</a></li>
+                    }
+                </ul>
+            </nav>
+        }
+    </div>
 </div>
 
 
 @code {
     public UserParams userParams { get; set; } = new UserParams();
+    public PaginationHeader Pagination { get; set; } = null;
 
     public IEnumerable<UserForListDto> Users { get; set; }
 
     [Inject]
-    private IMemberService memberService { get; set; }
+    private IMemberService _memberService { get; set; }
 
     [Inject]
     private ILocalStorageService _localStorage { get; set; }
+
+    [Inject]
+    private IAlertifyService _alertifyService { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,6 +112,16 @@
 
     private async Task LoadUsers()
     {
-        Users = await memberService.GetUsers(userParams);
+        (Users, Pagination) = await _memberService.GetUsers(userParams);
+        if (Users == null)
+        {
+            await _alertifyService.Error("Error getting users");
+        }
+    }
+
+    private async Task ChangePage(int page)
+    {
+        userParams.PageNumber = page;
+        await LoadUsers();
     }
 }

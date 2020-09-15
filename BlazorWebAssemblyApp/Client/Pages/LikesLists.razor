@@ -22,7 +22,7 @@
 
     <br>
 
-    <div class="row">
+    <div class="row justify-content-center">
         @if (Users == null)
         {
             <p>Loading</p>
@@ -32,12 +32,25 @@
             @foreach (var user in Users)
             {
                 <div class="col-sm-6 col-md-4 col-lg-4 col-xl-2">
-                    <MemberCard
-                        User="user"
-                        ShowLike="false">
+                    <MemberCard User="user"
+                                ShowLike="false">
                     </MemberCard>
                 </div>
             }
+        }
+    </div>
+    <div class="row justify-content-center mt-2">
+        @if (Pagination != null)
+        {
+            <nav>
+                <ul class="pagination">
+                    @for (int i = 1; i <= Pagination.TotalPages; i++)
+                    {
+                        var temp = i;
+                        <li class="page-item" @onclick="(e => ChangePage(temp))"><a class="page-link">@i</a></li>
+                    }
+                </ul>
+            </nav>
         }
     </div>
 
@@ -48,18 +61,27 @@
 
     public IEnumerable<UserForListDto> Users { get; set; }
     public UserParams userParams { get; set; } = new UserParams() { Likers = true};
+    public PaginationHeader Pagination { get; set; } = null;
+
     [Inject]
-    private IMemberService memberService { get; set; }
+    private IMemberService _memberService { get; set; }
 
-
+    [Inject]
+    private IAlertifyService _alertifyService { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadUsers();
     }
+
     private async Task LoadUsers()
     {
-        Users = await memberService.GetUsers(userParams);
+        (Users, Pagination) = await _memberService.GetUsers(userParams);
+        if (Users == null)
+        {
+            await _alertifyService.Error("Error getting users");
+            return;
+        }
         StateHasChanged();
     }
 
@@ -67,6 +89,11 @@
     {
         userParams.Likees = !userParams.Likees;
         userParams.Likers = !userParams.Likers;
+        await LoadUsers();
+    }
+    private async Task ChangePage(int page)
+    {
+        userParams.PageNumber = page;
         await LoadUsers();
     }
 }
